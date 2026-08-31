@@ -33,5 +33,8 @@
 <div id="modal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle"></h3><button id="modalClose">×</button></div><div id="modalBody"></div></div></div>
 <script src="app.js"></script>
 <script src="sync.js"></script>
-<script src="impresiones-v2.js"></script>
+<script src="offline.js"></script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Offline cache:',e)))}
+</script>
 </body></html>
