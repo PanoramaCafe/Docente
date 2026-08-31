@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panorama Docente</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand"><div class="brand-mark">PD</div><div><b>Panorama Docente</b><small>2026–2027</small></div></div>
+  <nav id="nav">
+    <button class="nav active" data-view="dashboard">🏠 Dashboard</button>
+    <button class="nav" data-view="alumnos">👨‍🎓 Alumnos</button>
+    <button class="nav" data-view="asistencia">📋 Asistencia</button>
+    <button class="nav" data-view="trabajos">📝 Trabajos</button>
+    <button class="nav" data-view="calificaciones">📊 Calificaciones</button>
+    <button class="nav" data-view="bitacora">📚 Temas / Bitácora</button>
+    <button class="nav" data-view="incidencias">⚠️ Incidencias</button>
+    <button class="nav" data-view="reportes">📈 Reportes</button>
+    <button class="nav" data-view="config">⚙️ Configuración</button>
+  </nav>
+  <div class="sidebar-bottom"><button class="btn ghost" id="demoBtn">Cargar datos demo</button><button class="btn danger" id="resetBtn">Borrar datos locales</button></div>
+</aside>
+<main class="main">
+<header class="topbar"><div><h1 id="pageTitle">Dashboard</h1><p id="pageSubtitle">Resumen de tu gestión docente</p></div><div class="top-actions"><span class="cycle">Ciclo 2026–2027</span><button class="btn primary" id="quickAdd">＋ Registro rápido</button></div></header>
+<section id="content"></section>
+</main>
+</div>
+<div id="modal" class="modal hidden"><div class="modal-card"><div class="modal-head"><h3 id="modalTitle"></h3><button id="modalClose">×</button></div><div id="modalBody"></div></div></div>
+<script src="app.js"></script>
+</body></html>
