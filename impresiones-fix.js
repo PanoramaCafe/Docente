@@ -1,37 +1,33 @@
-/* Fix central: navegación de Impresiones + edición de Trabajos + campos de calificación visibles */
+/* Fix definitivo: Impresiones, Trabajos y Calificaciones */
 (function(){
-  const originalSetView=window.setView;
-  window.setView=function(v){
-    if(v==='impresiones'){
-      window.view='impresiones';
-      document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view==='impresiones'));
-      document.getElementById('pageTitle').textContent='Impresiones / Adeudos';
-      document.getElementById('pageSubtitle').textContent='Control de impresiones, pagos y calificaciones';
-      if(typeof window.renderPrints==='function') window.renderPrints();
-      else if(typeof window.pdRender==='function') window.pdRender();
-      return;
-    }
-    return originalSetView(v);
-  };
-  function addWorkActions(){
-    if(window.view!=='trabajos')return;
-    document.querySelectorAll('#content table.table tr').forEach((tr,i)=>{
-      if(i===0||tr.querySelector('.work-actions'))return;
-      const cells=tr.querySelectorAll('td'); if(!cells.length)return;
-      const name=(cells[1]?.innerText||'').trim();
-      const activity=db.activities.find(a=>a.title===name.split('\n')[0]&&a.groupId===db.groups.find(g=>g.name===cells[2]?.innerText)?.id);
-      if(!activity)return;
-      const td=document.createElement('td');td.className='work-actions';td.innerHTML='<button class="btn" type="button">Editar</button> <button class="btn danger" type="button">Eliminar</button>';
-      td.children[0].onclick=()=>editWork(activity.id);
-      td.children[1].onclick=()=>deleteWork(activity.id);
-      tr.appendChild(td);
-    });
-  }
-  window.editWork=function(id){const a=db.activities.find(x=>x.id===id);if(!a)return;const title=prompt('Nombre de la actividad',a.title);if(title===null)return;const date=prompt('Fecha (AAAA-MM-DD)',a.date)||a.date;const points=Number(prompt('Valor de la actividad',a.points??10));if(!title.trim()||!Number.isFinite(points))return; a.title=title.trim();a.topic=a.topic===a.title?a.title:a.topic;a.date=date;a.points=points;save();setView('trabajos');};
-  window.deleteWork=function(id){const a=db.activities.find(x=>x.id===id);if(!a)return;if(!confirm('¿Eliminar esta actividad? También se eliminarán sus calificaciones.'))return;db.activities=db.activities.filter(x=>x.id!==id);db.grades=db.grades.filter(x=>x.activityId!==id);if(Array.isArray(db.prints))db.prints=db.prints.filter(x=>x.activityId!==id);save();setView('trabajos');};
-  const oldRender=window.render;
-  window.render=function(){oldRender();setTimeout(addWorkActions,0);setTimeout(styleGrades,0)};
-  function styleGrades(){document.querySelectorAll('.gradeInput').forEach(x=>{x.style.cssText='width:86px!important;min-width:86px;height:40px!important;padding:7px 8px!important;border:2px solid #245b7a!important;border-radius:8px!important;background:#fff!important;color:#183044!important;font-size:16px!important;font-weight:600!important;text-align:center!important;box-shadow:inset 0 0 0 1px rgba(0,0,0,.04)!important;'});}
-  document.addEventListener('click',e=>{const b=e.target.closest('.nav[data-view="trabajos"]');if(b)setTimeout(addWorkActions,30);const c=e.target.closest('.nav[data-view="calificaciones"]');if(c)setTimeout(styleGrades,100)});
-  setInterval(()=>{if(window.view==='trabajos')addWorkActions();if(window.view==='calificaciones')styleGrades()},800);
+function start(){
+ const nav=document.getElementById('nav'); if(!nav)return setTimeout(start,200);
+ let b=nav.querySelector('[data-view="impresiones"]');
+ if(!b){b=document.createElement('button');b.className='nav';b.dataset.view='impresiones';b.textContent='🖨️ Impresiones / Adeudos';nav.appendChild(b)}
+ b.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();showPrints();},true);
+ const oldSet=window.setView;
+ window.setView=function(v){if(v==='impresiones'){showPrints();return}return oldSet(v)};
+ const oldRender=window.render;
+ window.render=function(){if(view==='impresiones')showPrints();else{oldRender();setTimeout(addWorkActions,30);setTimeout(styleGrades,30)}};
+ window.renderPrints=showPrints;
+ window.pdRender=showPrints;
+ addWorkActions();styleGrades();
+}
+function showPrints(){view='impresiones';document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.view==='impresiones'));document.getElementById('pageTitle').textContent='Impresiones / Adeudos';document.getElementById('pageSubtitle').textContent='Control de impresiones, pagos y calificaciones';renderPrintsUI()}
+function renderPrintsUI(){
+ if(!Array.isArray(db.prints))db.prints=[];
+ const c=document.getElementById('content'),jobs=db.prints;
+ const total=jobs.reduce((n,j)=>n+(+j.cost||0)*(j.students?.length||0),0),paid=jobs.reduce((n,j)=>n+(+j.cost||0)*(j.students||[]).filter(x=>x.paid).length,0);
+ c.innerHTML=`<div class="grid kpis"><div class="card kpi"><div class="label">Generado</div><div class="value">$${total.toFixed(2)}</div></div><div class="card kpi"><div class="label">Cobrado</div><div class="value">$${paid.toFixed(2)}</div></div><div class="card kpi"><div class="label">Pendiente</div><div class="value">$${(total-paid).toFixed(2)}</div></div><div class="card kpi"><div class="label">Trabajos impresos</div><div class="value">${jobs.length}</div></div></div><div class="card"><h2>🖨️ Nueva impresión</h2><div class="toolbar"><input id="pdDate" type="date" value="${today()}"><select id="pdGroup">${db.groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select><select id="pdSubject">${db.subjects.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select><input id="pdTitle" placeholder="Nombre del trabajo"><input id="pdCost" type="number" min="0" step="1" value="2" style="max-width:120px"><button class="btn primary" id="pdCreate">Crear impresión</button></div><p class="hint">La impresión crea automáticamente la misma actividad en Trabajos y Calificaciones.</p></div><div class="card"><h2>Trabajos impresos</h2><div class="table-wrap"><table class="table"><tr><th>Fecha</th><th>Trabajo</th><th>Grupo</th><th>Costo</th><th>Pagados</th><th>Pendiente</th><th></th></tr>${jobs.map(j=>{const n=j.students?.length||0,p=(j.students||[]).filter(x=>x.paid).length;return `<tr><td>${j.date}</td><td><b>${esc(j.title)}</b></td><td>${groupName(j.groupId)}</td><td>$${(+j.cost).toFixed(2)}</td><td>${p}/${n}</td><td>$${((n-p)*(+j.cost)).toFixed(2)}</td><td><button class="btn" onclick="pdOpen('${j.id}')">Alumnos</button></td></tr>`}).join('')||'<tr><td colspan="7" class="empty">No hay impresiones registradas.</td></tr>'}</table></div></div>`;
+ document.getElementById('pdCreate').onclick=createPrint;
+}
+function createPrint(){const date=pdDate.value,g=pdGroup.value,s=pdSubject.value,title=pdTitle.value.trim(),cost=Number(pdCost.value);if(!title||!Number.isFinite(cost)||cost<0)return alert('Completa actividad y costo.');const students=studentsOf(g);if(!students.length)return alert('Ese grupo no tiene alumnos registrados.');const a={id:uid('act'),date,title,topic:title,groupId:g,subjectId:s,points:10,source:'impresion'};db.activities.push(a);db.prints.push({id:uid('print'),activityId:a.id,date,groupId:g,subjectId:s,title,cost,students:students.map(x=>({studentId:x.id,paid:false}))});save();showPrints();alert('Impresión creada y vinculada a Trabajos y Calificaciones.')}
+window.pdOpen=function(id){const j=db.prints.find(x=>x.id===id);if(!j)return;document.getElementById('content').innerHTML=`<div class="toolbar"><button class="btn" onclick="showPrints()">← Regresar</button></div><div class="card"><h2>${esc(j.title)} · ${groupName(j.groupId)}</h2><p class="hint">Costo: $${(+j.cost).toFixed(2)} por alumno.</p><div class="table-wrap"><table class="table"><tr><th>Alumno</th><th>Calificación</th><th>Pago</th></tr>${j.students.map(x=>{const g=db.grades.find(z=>z.activityId===j.activityId&&z.studentId===x.studentId);return `<tr><td><b>${esc(studentName(x.studentId))}</b></td><td><input class="gradeInput" type="number" min="0" max="10" step="0.1" value="${g?.value??''}" onchange="pdGrade('${j.activityId}','${x.studentId}',this.value)"></td><td><label><input type="checkbox" ${x.paid?'checked':''} onchange="pdPaid('${j.id}','${x.studentId}',this.checked)"> ☑ Pagado</label></td></tr>`}).join('')}</table></div></div>`;styleGrades()}
+window.pdGrade=function(a,s,v){if(v==='')return;const i=db.grades.findIndex(g=>g.activityId===a&&g.studentId===s),o={id:i>=0?db.grades[i].id:uid('gr'),studentId:s,activityId:a,value:+v};i>=0?db.grades[i]=o:db.grades.push(o);save()};
+window.pdPaid=function(j,s,v){const p=db.prints.find(x=>x.id===j)?.students.find(x=>x.studentId===s);if(p){p.paid=!!v;p.paidAt=v?new Date().toISOString():null;save();pdOpen(j)}};
+function addWorkActions(){if(view!=='trabajos')return;document.querySelectorAll('#content table.table tr').forEach((tr,i)=>{if(i===0||tr.querySelector('.work-actions'))return;const cells=tr.querySelectorAll('td');if(cells.length<5)return;const name=(cells[1]?.innerText||'').split('\n')[0].trim(),group=(cells[2]?.innerText||'').trim(),a=db.activities.find(x=>x.title===name&&groupName(x.groupId)===group);if(!a)return;const td=document.createElement('td');td.className='work-actions';td.innerHTML='<button class="btn" type="button">Editar</button> <button class="btn danger" type="button">Eliminar</button>';td.children[0].onclick=()=>editWork(a.id);td.children[1].onclick=()=>deleteWork(a.id);tr.appendChild(td)})}
+function editWork(id){const a=db.activities.find(x=>x.id===id);if(!a)return;const title=prompt('Nombre de la actividad',a.title);if(title===null)return;const date=prompt('Fecha (AAAA-MM-DD)',a.date)||a.date;const points=Number(prompt('Valor de la actividad',a.points??10));if(!title.trim()||!Number.isFinite(points))return;a.title=title.trim();a.topic=a.topic===a.title?a.title:a.topic;a.date=date;a.points=points;const p=db.prints.find(x=>x.activityId===id);if(p){p.title=a.title;p.date=a.date}save();setView('trabajos')}
+function deleteWork(id){if(!confirm('¿Eliminar esta actividad, sus calificaciones y su impresión vinculada si existe?'))return;db.activities=db.activities.filter(x=>x.id!==id);db.grades=db.grades.filter(x=>x.activityId!==id);db.prints=db.prints.filter(x=>x.activityId!==id);save();setView('trabajos')}
+function styleGrades(){document.querySelectorAll('.gradeInput').forEach(x=>x.style.cssText='width:90px!important;min-width:90px!important;height:42px!important;padding:7px!important;border:2px solid #245b7a!important;border-radius:8px!important;background:#fff!important;color:#183044!important;font-size:17px!important;font-weight:600!important;text-align:center!important;box-sizing:border-box!important;')}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
