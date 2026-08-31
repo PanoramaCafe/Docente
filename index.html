@@ -21,6 +21,7 @@
     <button class="nav" data-view="bitacora">📚 Temas / Bitácora</button>
     <button class="nav" data-view="incidencias">⚠️ Incidencias</button>
     <button class="nav" data-view="reportes">📈 Reportes</button>
+    <button class="nav" data-view="impresiones">🖨️ Impresiones / Adeudos</button>
     <button class="nav" data-view="config">⚙️ Configuración</button>
   </nav>
   <div class="sidebar-bottom"><button class="btn ghost" id="demoBtn">Cargar datos demo</button><button class="btn danger" id="resetBtn">Borrar datos locales</button></div>
@@ -34,6 +35,7 @@
 <script src="app.js"></script>
 <script src="sync.js"></script>
 <script src="offline.js"></script>
+<script src="impresiones-v2.js"></script>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Offline cache:',e)))}
 </script>
