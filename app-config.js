@@ -1,16 +1,2 @@
-/* Panorama Docente — configuración central
-   ÚNICO LUGAR para reglas generales del ciclo, materias, versión y módulos.
-*/
-window.PD_CONFIG={
-  version:'2026.09.01.20',
-  cycle:'2026-2027',
-  grades:['1','2','3'],
-  groups:['A','B','C','D','E'],
-  subjects:[
-    {id:'bio1',name:'Biología',grades:['1']},
-    {id:'vida23',name:'Vida Saludable',grades:['1','2','3']}
-  ],
-  modules:['sync.js','impresiones.js','asistencia-mejorada.js','modules/bitacora.js','modules/alumnos.js','modules/trabajos-core.js'],
-  subjectAllowed(subjectId,grade){const s=this.subjects.find(x=>x.id===subjectId);return !!s&&s.grades.includes(String(grade))},
-  groupId(grade,letter){return `${grade}${String(letter).toUpperCase()}`}
-};
+/* Panorama Docente — configuración central */
+window.PD_CONFIG={version:'2026.09.01.21',cycle:'2026-2027',grades:['1','2','3'],groups:['A','B','C','D','E'],subjects:[{id:'bio1',name:'Biología',grades:['1']},{id:'vida23',name:'Vida Saludable',grades:['1','2','3']}],modules:['sync.js','modules/trabajos-core.js','impresiones.js','asistencia-mejorada.js','modules/bitacora.js','modules/alumnos.js'],subjectAllowed(subjectId,grade){const s=this.subjects.find(x=>x.id===subjectId);return !!s&&s.grades.includes(String(grade))},groupId(grade,letter){return `${grade}${String(letter).toUpperCase()}`}};
