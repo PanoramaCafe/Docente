@@ -1,8 +1,8 @@
 /* Panorama Docente — configuración central
-   ÚNICO LUGAR para reglas generales del ciclo, materias, grupos, versión y módulos.
+   ÚNICO LUGAR para reglas generales del ciclo, materias, versión y módulos.
 */
 window.PD_CONFIG={
-  version:'2026.09.01.17',
+  version:'2026.09.01.18',
   cycle:'2026-2027',
   grades:['1','2','3'],
   groups:['A','B','C','D','E'],
