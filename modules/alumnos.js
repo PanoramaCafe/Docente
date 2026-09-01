@@ -4,6 +4,7 @@
 (function(){
   const KEY='panoramaDocente_v1';
   const normalize=v=>String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase().replace(/\s+/g,' ');
+  const normalizeCurp=v=>String(v??'').trim().toUpperCase().replace(/\s+/g,'');
   function read(){try{return JSON.parse(localStorage.getItem(KEY))||null}catch{return null}}
   function write(data){localStorage.setItem(KEY,JSON.stringify(data))}
   function deleteStudent(id){
@@ -47,30 +48,38 @@
     reader.onload=e=>{
       try{
         const wb=XLSX.read(e.target.result,{type:'array'});
-        const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
         const data=read();
         if(!data)return alert('No se encontraron datos locales.');
-        const existing=new Set((data.students||[]).map(s=>`${normalize(s.name)}|${normalize(s.groupId)}`));
-        let added=0,duplicates=0;
-        rows.forEach(row=>{
-          const keys=Object.keys(row).map(k=>[k,k.toLowerCase().trim()]);
-          const get=(...names)=>{const found=keys.find(([a,b])=>names.includes(b));return found?row[found[0]]:''};
-          let name=get('nombre completo','nombre');
-          if(!name)name=[get('apellido paterno','paterno'),get('apellido materno','materno'),get('nombres')].filter(Boolean).join(' ');
-          if(!name)return;
-          const raw=String(get('grupo')||'').toUpperCase().replace('º','').replace(' ','');
-          const grade=raw.match(/[123]/)?.[0]||'1';
-          const letter=raw.match(/[ABCDE]/)?.[0]||'A';
-          let groupId=grade+letter;
-          if(!data.groups.some(g=>g.id===groupId))groupId='1A';
-          const duplicateKey=`${normalize(name)}|${normalize(groupId)}`;
-          if(existing.has(duplicateKey)){duplicates++;return;}
-          const curp=String(get('curp')||'').trim();
-          data.students.push({id:'stu_'+Math.random().toString(36).slice(2,9),name:String(name).trim(),curp,groupId});
-          existing.add(duplicateKey);added++;
+        data.students=Array.isArray(data.students)?data.students:[];
+        const existingKeys=new Set(data.students.map(s=>`${normalize(s.name)}|${normalize(s.groupId)}`));
+        const existingCurps=new Set(data.students.map(s=>normalizeCurp(s.curp)).filter(Boolean));
+        let added=0,duplicates=0,invalid=0,rowsRead=0;
+        wb.SheetNames.forEach(sheetName=>{
+          const sheet=wb.Sheets[sheetName];
+          const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
+          rows.forEach(row=>{
+            rowsRead++;
+            const keys=Object.keys(row).map(k=>[k,k.toLowerCase().trim()]);
+            const get=(...names)=>{const found=keys.find(([a,b])=>names.includes(b));return found?row[found[0]]:''};
+            let name=get('nombre completo','nombre','alumno','estudiante');
+            if(!name)name=[get('apellido paterno','paterno'),get('apellido materno','materno'),get('nombres')].filter(Boolean).join(' ');
+            if(!name)return;
+            const raw=String(get('grupo')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+            const grade=raw.match(/[123]/)?.[0]||'';
+            const letter=raw.match(/[ABCDE]/)?.[0]||'';
+            const groupId=grade+letter;
+            if(!/^[123][ABCDE]$/.test(groupId)||!data.groups.some(g=>g.id===groupId)){invalid++;return;}
+            const curp=normalizeCurp(get('curp'));
+            const duplicateKey=`${normalize(name)}|${normalize(groupId)}`;
+            if(existingKeys.has(duplicateKey)||(curp&&existingCurps.has(curp))){duplicates++;return;}
+            data.students.push({id:'stu_'+Math.random().toString(36).slice(2,9),name:String(name).trim(),curp,groupId});
+            existingKeys.add(duplicateKey);
+            if(curp)existingCurps.add(curp);
+            added++;
+          });
         });
         write(data);
-        alert(`Importación terminada.\n\nAgregados: ${added}\nDuplicados omitidos: ${duplicates}`);
+        alert(`Importación terminada.\n\nFilas revisadas: ${rowsRead}\nAgregados: ${added}\nDuplicados omitidos: ${duplicates}\nFilas sin grupo válido: ${invalid}`);
         location.reload();
       }catch(err){alert('No se pudo leer el archivo: '+err.message)}
     };
