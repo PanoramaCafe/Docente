@@ -2,7 +2,7 @@
    ÚNICO LUGAR para reglas generales del ciclo, materias, grupos y versión.
 */
 window.PD_CONFIG={
-  version:'2026.09.01.3',
+  version:'2026.09.01.9',
   cycle:'2026-2027',
   grades:['1','2','3'],
   groups:['A','B','C','D','E'],
