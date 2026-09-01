@@ -1,7 +1,7 @@
-const CACHE='panorama-docente-v10';
-const VERSION='2026.09.01.3';
-const SHELL=['./','./index.html','./styles.css','./app.js','./app-config.js','./modules.js','./sync.js','./offline.js','./impresiones.js','./impresiones-fix.js','./asistencia-mejorada.js','./materias-fix.js','./bitacora-fix.js'];
+const CACHE='panorama-docente-v11';
+const VERSION='2026.09.01.4';
+const SHELL=['./','./index.html','./styles.css','./app-config.js','./app.js','./modules.js','./sync.js','./offline.js','./impresiones.js','./asistencia-mejorada.js','./bitacora-fix.js'];
 const EXTERNAL=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'];
-self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(async c=>{for(const u of SHELL){try{await c.add(u)}catch(err){}}for(const u of EXTERNAL){try{await c.add(u)}catch(err){}}}).then(()=>self.skipWaiting()))});
-self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
-self.addEventListener('fetch',e=>{const req=e.request;if(req.method!=='GET')return;e.respondWith(caches.match(req).then(cached=>cached||fetch(req).then(res=>{if(res&&(res.ok||res.type==='opaque')){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy)).catch(()=>{})}return res}).catch(()=>caches.match('./index.html'))))});
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(async c=>{for(const u of SHELL){try{await c.add(`${u}?v=${VERSION}`)}catch(err){}}for(const u of EXTERNAL){try{await c.add(u)}catch(err){}}}).then(()=>self.skipWaiting())));
+self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;e.respondWith(caches.match(r).then(c=>c||fetch(r).then(res=>{if(res&&(res.ok||res.type==='opaque')){const cp=res.clone();caches.open(CACHE).then(x=>x.put(r,cp)).catch(()=>{})}return res}).catch(()=>caches.match('./index.html'))))});
