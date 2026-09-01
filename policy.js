@@ -1,7 +1,7 @@
 /* Panorama Docente — política central de materias */
 (function(){
   const CFG=window.PD_CONFIG;
-  if(!CFG || !window.db) return;
+  if(!CFG || typeof db==='undefined') return;
 
   const subjects=CFG.subjects.map(s=>({id:s.id,name:s.name,grades:[...s.grades]}));
   db.subjects=subjects;
