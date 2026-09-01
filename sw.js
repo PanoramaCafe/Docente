@@ -1,6 +1,6 @@
-const CACHE='panorama-docente-v8';
-const VERSION='2026.09.01.2';
-const SHELL=['./','./index.html','./styles.css','./app.js','./sync.js','./offline.js','./impresiones.js','./impresiones-fix.js','./asistencia-mejorada.js','./materias-fix.js'];
+const CACHE='panorama-docente-v9';
+const VERSION='2026.09.01.3';
+const SHELL=['./','./index.html','./styles.css','./app.js','./sync.js','./offline.js','./impresiones.js','./impresiones-fix.js','./asistencia-mejorada.js','./materias-fix.js','./bitacora-fix.js'];
 const EXTERNAL=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(async c=>{for(const u of SHELL){try{await c.add(u)}catch(err){}}for(const u of EXTERNAL){try{await c.add(u)}catch(err){}}}).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
