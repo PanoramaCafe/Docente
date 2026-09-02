@@ -2,12 +2,12 @@
 (function(){
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
   const gradeOf=id=>String(db.groups.find(g=>g.id===id)?.grade||id||'').replace(/[^0-9]/g,'').slice(0,1);
-  const allowed=(groupId,sid)=>!sid||PD_CONFIG.subjectAllowed(sid,gradeOf(groupId));
+  const allowed=(groupId,sid)=>!sid||PD_CONFIG.subjectAllowedForGroup(sid,groupId);
   function view(){
     const groups=db.groups.filter(g=>g.active);
     return `<div class="toolbar"><select id="cxGroup"><option value="">Selecciona grupo</option>${groups.map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join('')}</select><select id="cxSubject" disabled><option value="">Selecciona primero el grupo</option></select><button class="btn primary" id="cxOpen">Abrir calificaciones</button></div><div id="cxTable" class="card"><div class="empty">Selecciona grupo y materia.</div></div>`;
   }
-  function subjects(groupId){return PD_CONFIG.subjects.filter(s=>s.grades.includes(gradeOf(groupId)));}
+  function subjects(groupId){return PD_CONFIG.subjects.filter(s=>PD_CONFIG.subjectAllowedForGroup(s.id,groupId));}
   function load(){
     const g=document.getElementById('cxGroup')?.value,s=document.getElementById('cxSubject')?.value;
     if(!g)return;
