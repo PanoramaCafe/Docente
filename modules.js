@@ -6,6 +6,13 @@
   async function load(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=`${src}?v=${encodeURIComponent(window.PD_CONFIG?.version||Date.now())}`;s.onload=resolve;s.onerror=reject;document.body.appendChild(s)})}
   function installStableRouter(){
     window.setView=function(v){
+      if(v==='calificaciones'&&window.PD_CALIFICACIONES?.activate){
+        view=v;
+        document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+        document.getElementById('pageTitle').textContent='Calificaciones';
+        document.getElementById('pageSubtitle').textContent='Evaluación y promedios';
+        return window.PD_CALIFICACIONES.activate();
+      }
       if(v==='reportes'&&window.PD_REPORTES?.render){
         view=v;
         document.querySelectorAll('.nav').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
