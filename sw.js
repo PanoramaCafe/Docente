@@ -1,5 +1,5 @@
-const CACHE='panorama-docente-v29';
-const VERSION='2026.09.01.36';
+const CACHE='panorama-docente-v30';
+const VERSION='2026.09.01.37';
 const SHELL=['./','./index.html','./styles.css','./app-config.js','./app.js','./modules.js','./policy.js','./sync.js','./impresiones.js','./asistencia-mejorada.js','./modules/trabajos-core.js','./modules/trabajos.js','./modules/bitacora.js','./modules/alumnos.js','./modules/incidencias.js','./modules/reportes.js','./modules/calificaciones.js'];
 const EXTERNAL=['https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js','https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js','https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'];
 const SHELL_SET=new Set(SHELL.map(x=>new URL(x,self.location).pathname));
