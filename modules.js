@@ -1,6 +1,7 @@
 /* Panorama Docente — cargador central de módulos */
 (function(){
-  const modules=Array.isArray(window.PD_CONFIG?.modules)&&window.PD_CONFIG.modules.length?window.PD_CONFIG.modules:['sync.js','asistencia-mejorada.js','impresiones.js','modules/trabajos-core.js','modules/trabajos.js','modules/bitacora.js','modules/alumnos.js','modules/incidencias.js','modules/reportes.js','modules/calificaciones.js','modules/identidad.js'];
+  const configured=Array.isArray(window.PD_CONFIG?.modules)&&window.PD_CONFIG.modules.length?window.PD_CONFIG.modules:['sync.js','asistencia-mejorada.js','impresiones.js','modules/trabajos-core.js','modules/trabajos.js','modules/bitacora.js','modules/alumnos.js','modules/incidencias.js','modules/reportes.js','modules/calificaciones.js'];
+  const modules=[...configured.filter(m=>m!=='modules/identidad.js'),'modules/identidad.js'];
   const baseSetView=window.setView;
   window.PD_MODULES={version:window.PD_CONFIG?.version||'unknown',list:[...modules]};
   async function load(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=`${src}?v=${encodeURIComponent(window.PD_CONFIG?.version||Date.now())}`;s.onload=resolve;s.onerror=reject;document.body.appendChild(s)})}
