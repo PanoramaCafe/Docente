@@ -2,10 +2,15 @@
 (function(){
   const CFG=window.PD_CONFIG;
   if(!CFG || typeof db==='undefined') return;
-  const subjects=CFG.subjects.map(s=>({id:s.id,name:s.name,grades:[...s.grades]}));
+  const subjects=CFG.subjects.map(s=>({id:s.id,name:s.name,grades:[...s.grades],groups:s.groups?[...s.groups]:null}));
   db.subjects=subjects;
   function gradeOf(groupId){const g=db.groups?.find(x=>x.id===groupId);return String(g?.grade||groupId||'').replace(/[^0-9]/g,'').slice(0,1)}
-  function allowed(groupId){return db.subjects.filter(s=>s.grades.includes(gradeOf(groupId)))}
+  function allowed(groupId){
+    return db.subjects.filter(s=>{
+      if(!s.grades.includes(gradeOf(groupId)))return false;
+      return !s.groups || s.groups.includes(String(groupId||'').toUpperCase());
+    });
+  }
   function fix(groupId,select){if(!select)return;const list=allowed(groupId),old=select.value;select.innerHTML=list.map(s=>`<option value="${s.id}">${typeof esc==='function'?esc(s.name):String(s.name)}</option>`).join('');if(list.some(s=>s.id===old))select.value=old}
   function bind(){[['attGroup','attSubject'],['gradeGroup','gradeSubject'],['printGroup','printSubject'],['pdGroup','pdSubject'],['axGroup','axSub']].forEach(([gid,sid])=>{const g=document.getElementById(gid),s=document.getElementById(sid);if(!g||!s||g.dataset.pdSubjectPolicy)return;g.dataset.pdSubjectPolicy='1';g.addEventListener('change',()=>fix(g.value,s));fix(g.value,s)})}
   window.PD_SUBJECT_POLICY={allowed,fix,subjects};
