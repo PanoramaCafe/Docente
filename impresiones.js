@@ -22,7 +22,7 @@
   }
   function stats(){
     var total=0,paid=0,owing={};
-    (db.prints||[]).forEach(function(p){(p.students||[]).forEach(function(s){total+=Number(p.cost||0);if(s.paid)paid+=Number(p.cost||0);else owing[s.studentId]=true;});});
+    (db.prints||[]).forEach(function(p){var roster=(db.students||[]).filter(function(s){return s.groupId===p.groupId;});roster.forEach(function(student){var rec=(p.students||[]).find(function(x){return x.studentId===student.id;});total+=Number(p.cost||0);if(rec&&rec.paid)paid+=Number(p.cost||0);else owing[student.id]=true;});});
     return '<div class="grid kpis"><div class="card kpi"><div class="label">Generado</div><div class="value">'+money(total)+'</div></div><div class="card kpi"><div class="label">Cobrado</div><div class="value">'+money(paid)+'</div></div><div class="card kpi"><div class="label">Pendiente</div><div class="value">'+money(total-paid)+'</div></div><div class="card kpi"><div class="label">Alumnos con adeudo</div><div class="value">'+Object.keys(owing).length+'</div></div></div>';
   }
   function form(){
@@ -35,7 +35,7 @@
       var students=(db.students||[]).filter(function(s){return s.groupId===g.id;});
       var jobs=(db.prints||[]).filter(function(p){return p.groupId===g.id;});
       var debt=0,jobsPending=0;
-      jobs.forEach(function(p){(p.students||[]).forEach(function(x){if(!x.paid){debt+=Number(p.cost||0);jobsPending++;}});});
+      jobs.forEach(function(p){students.forEach(function(student){var rec=(p.students||[]).find(function(x){return x.studentId===student.id;});if(!rec||!rec.paid){debt+=Number(p.cost||0);jobsPending++;}});});
       return '<button class="card pd-group-card" onclick="pdOpenGroup(\''+esc(g.id)+'\')"><strong>'+esc(g.name)+'</strong><span>'+students.length+' alumnos · '+jobs.length+' impresiones</span><b>'+(jobsPending?money(debt)+' pendiente':'✓ Sin adeudos')+'</b></button>';
     }).join("")+'</div></div>';
     pdUpdateSubject();pdUpdateCopies();
@@ -65,28 +65,21 @@
     var g=(db.groups||[]).find(function(x){return x.id===groupId;}),students=(db.students||[]).filter(function(s){return s.groupId===groupId;}).slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),"es");});
     var jobs=(db.prints||[]).filter(function(p){return p.groupId===groupId;}).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date))||String(a.title).localeCompare(String(b.title),"es");});
     var debt=0,pending=0;
-    jobs.forEach(function(p){(p.students||[]).forEach(function(x){if(!x.paid){debt+=Number(p.cost||0);pending++;}});});
+    jobs.forEach(function(p){students.forEach(function(student){var rec=(p.students||[]).find(function(x){return x.studentId===student.id;});if(!rec||!rec.paid){debt+=Number(p.cost||0);pending++;}});});
     document.getElementById("pageTitle").textContent="Pagos · "+(g&&g.name||"Grupo");
     document.getElementById("pageSubtitle").textContent="Marca la casilla cuando el alumno pague cada impresión.";
     var c=document.getElementById("content"),kpi=stats();
     c.innerHTML=kpi+'<div class="toolbar"><button class="btn" onclick="pdBackToGroups()">← Todos los grupos</button><div class="card" style="padding:10px 14px"><b>'+students.length+' alumnos</b><span class="hint"> · '+jobs.length+' impresiones · '+pending+' pendientes · '+money(debt)+'</span></div></div><div class="card"><div class="section-title"><h2>'+esc(g&&g.name||"Grupo")+' · Control de pagos</h2><span class="hint">Casilla marcada = pagado · vacía = pendiente · — = no incluido</span></div>'+
-    (jobs.length?'<div class="pd-matrix-wrap"><table class="table pd-matrix"><thead><tr><th class="pd-sticky-name">Alumno</th>'+jobs.map(function(p,i){var n=(p.students||[]).length,paid=(p.students||[]).filter(function(x){return x.paid;}).length;return '<th><div>'+(i+1)+'. '+esc(p.title)+'</div><small>'+esc(p.date||"")+'</small><small>'+money(p.cost)+' por alumno</small><small>'+paid+'/'+n+' pagados</small></th>';}).join("")+'<th>Total pendiente</th></tr></thead><tbody>'+students.map(function(s){var owing=0;var cells=jobs.map(function(p){var rec=(p.students||[]).find(function(x){return x.studentId===s.id;});if(!rec)return '<td class="pd-not-included"><button class="btn pd-include" onclick="pdIncludeStudent(\''+esc(p.id)+'\',\''+esc(s.id)+'\')">Incluir</button></td>';if(!rec.paid)owing+=Number(p.cost||0);return '<td><label class="pd-check-label"><input type="checkbox" '+(rec.paid?"checked":"")+' aria-label="'+esc(s.name)+' · '+esc(p.title)+'" onchange="pdPaid(\''+esc(p.id)+'\',\''+esc(s.id)+'\',this.checked)"><span>'+(rec.paid?"Pagado":"Pendiente")+'</span></label></td>';}).join("");return '<tr><td class="pd-sticky-name"><strong>'+esc(s.name)+'</strong></td>'+cells+'<td><strong>'+money(owing)+'</strong></td></tr>';}).join("")+'</tbody></table></div>':'<p class="empty">Este grupo todavía no tiene impresiones registradas.</p>')+'</div>';
+    (jobs.length?'<div class="pd-matrix-wrap"><table class="table pd-matrix"><thead><tr><th class="pd-sticky-name">Alumno</th>'+jobs.map(function(p,i){var n=students.length,paid=students.filter(function(student){var rec=(p.students||[]).find(function(x){return x.studentId===student.id;});return !!(rec&&rec.paid);}).length;return '<th><div>'+(i+1)+'. '+esc(p.title)+'</div><small>'+esc(p.date||"")+'</small><small>'+money(p.cost)+' por alumno</small><small>'+paid+'/'+n+' pagados</small></th>';}).join("")+'<th>Total pendiente</th></tr></thead><tbody>'+students.map(function(s){var owing=0;var cells=jobs.map(function(p){var rec=(p.students||[]).find(function(x){return x.studentId===s.id;});if(!rec||!rec.paid)owing+=Number(p.cost||0);return '<td><label class="pd-check-label"><input type="checkbox" '+(rec&&rec.paid?"checked":"")+' aria-label="'+esc(s.name)+' · '+esc(p.title)+'" onchange="pdPaid(\\''+esc(p.id)+'\\',\\''+esc(s.id)+'\\',this.checked)"><span>'+(rec&&rec.paid?"Pagado":"Pendiente")+'</span></label></td>';}).join("");return '<tr><td class="pd-sticky-name"><strong>'+esc(s.name)+'</strong></td>'+cells+'<td><strong>'+money(owing)+'</strong></td></tr>';}).join("")+'</tbody></table></div>':'<p class="empty">Este grupo todavía no tiene impresiones registradas.</p>')+'</div>';
   };
   window.pdBackToGroups=function(){window.pdCurrentGroup=null;document.getElementById("pageTitle").textContent="Impresiones / Adeudos";document.getElementById("pageSubtitle").textContent="Control de pagos por grupo";render();};
   window.pdFocusJob=function(id){var th=document.querySelector('.pd-matrix th button[onclick*="'+id+'"]');if(th)th.closest("th").scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});};
-  window.pdIncludeStudent=function(printId,studentId){
-    var p=(db.prints||[]).find(function(x){return x.id===printId;});if(!p)return;
-    p.students=Array.isArray(p.students)?p.students:[];
-    if(!p.students.some(function(x){return x.studentId===studentId;})){
-      p.students.push({studentId:studentId,paid:false});
-      save();
-    }
-    window.pdOpenGroup(p.groupId);
-  };
   window.pdPaid=function(j,s,v){
-    var p=(db.prints||[]).find(function(x){return x.id===j;});
-    var rec=p&&(p.students||[]).find(function(x){return x.studentId===s;});
-    if(rec){rec.paid=!!v;rec.paidAt=v?new Date().toISOString():null;save();window.pdOpenGroup(p.groupId);}
+    var p=(db.prints||[]).find(function(x){return x.id===j;});if(!p)return;
+    p.students=Array.isArray(p.students)?p.students:[];
+    var rec=p.students.find(function(x){return x.studentId===s;});
+    if(!rec){rec={studentId:s,paid:false};p.students.push(rec);}
+    rec.paid=!!v;rec.paidAt=v?new Date().toISOString():null;save();window.pdOpenGroup(p.groupId);
   };
   window.pdDelete=function(id){
     var j=(db.prints||[]).find(function(x){return x.id===id;});if(!j)return;
@@ -96,7 +89,7 @@
     save();if(window.pdCurrentGroup)window.pdOpenGroup(window.pdCurrentGroup);else render();
   };
   var style=document.createElement("style");
-  style.textContent='.pd-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.pd-group-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;cursor:pointer;min-height:110px}.pd-group-card strong{font-size:23px}.pd-group-card span{font-size:13px;color:var(--muted,#667085)}.pd-matrix-wrap{max-width:100%;overflow:auto;border:1px solid var(--border,#dbe2ea);border-radius:10px}.pd-matrix{border-collapse:separate;border-spacing:0;min-width:100%;width:max-content}.pd-matrix th,.pd-matrix td{min-width:105px;text-align:center;padding:9px 10px;border-bottom:1px solid var(--border,#e1e6ed)}.pd-matrix .pd-sticky-name{position:sticky;left:0;z-index:2;min-width:175px;max-width:230px;text-align:left;background:var(--card,#fff)}.pd-matrix thead th{vertical-align:top;background:var(--surface,#f7f9fc);white-space:normal}.pd-matrix thead th small{display:block;font-weight:400;color:var(--muted,#667085);margin-top:4px}.pd-check-label{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-size:11px}.pd-check-label input{width:23px;height:23px;accent-color:#17834d;cursor:pointer}.pd-not-included{color:#98a2b3;background:#f8fafc}.pd-include{font-size:12px;padding:5px 8px;white-space:nowrap}.pd-small{margin-top:6px;font-size:12px;padding:5px 8px}@media(max-width:800px){.pd-matrix .pd-sticky-name{min-width:145px}.pd-matrix th,.pd-matrix td{padding:8px 7px}}';
+  style.textContent='.pd-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.pd-group-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;cursor:pointer;min-height:110px}.pd-group-card strong{font-size:23px}.pd-group-card span{font-size:13px;color:var(--muted,#667085)}.pd-matrix-wrap{max-width:100%;overflow:auto;border:1px solid var(--border,#dbe2ea);border-radius:10px}.pd-matrix{border-collapse:separate;border-spacing:0;min-width:100%;width:max-content}.pd-matrix th,.pd-matrix td{min-width:105px;text-align:center;padding:9px 10px;border-bottom:1px solid var(--border,#e1e6ed)}.pd-matrix .pd-sticky-name{position:sticky;left:0;z-index:2;min-width:175px;max-width:230px;text-align:left;background:var(--card,#fff)}.pd-matrix thead th{vertical-align:top;background:var(--surface,#f7f9fc);white-space:normal}.pd-matrix thead th small{display:block;font-weight:400;color:var(--muted,#667085);margin-top:4px}.pd-check-label{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-size:11px}.pd-check-label input{width:23px;height:23px;accent-color:#17834d;cursor:pointer}.pd-not-included{color:#98a2b3;background:#f8fafc}.pd-small{margin-top:6px;font-size:12px;padding:5px 8px}@media(max-width:800px){.pd-matrix .pd-sticky-name{min-width:145px}.pd-matrix th,.pd-matrix td{padding:8px 7px}}';
   document.head.appendChild(style);
   window.renderPrints=render;
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
