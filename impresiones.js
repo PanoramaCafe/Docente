@@ -56,9 +56,8 @@
     if(!title||!Number.isFinite(cost)||cost<1||Math.round(cost)!==cost)return alert("Escribe una descripción y un precio entero válido ($1, $2, $3…).");
     var ids=(db.students||[]).filter(function(x){return x.groupId===g;}).map(function(x){return x.id;});
     if(!ids.length)return alert("Ese grupo no tiene alumnos registrados.");
-    var activity=null;
-    try{if(window.PD_WORKS&&typeof PD_WORKS.linkPrint==="function")activity=PD_WORKS.linkPrint({}, {groupId:g,title:title,date:date,subjectId:subjectId,points:10});}catch(e){console.warn("No se pudo vincular el trabajo",e);}
-    db.prints.push({id:uid("print"),activityId:activity&&activity.id||null,date:date,groupId:g,title:title,cost:cost,students:ids.map(function(id){return {studentId:id,paid:false};})});
+    /* Impresiones es independiente de Trabajos y Calificaciones: no crear ni mover actividades. */
+    db.prints.push({id:uid("print"),date:date,groupId:g,title:title,cost:cost,students:ids.map(function(id){return {studentId:id,paid:false};})});
     save();render();alert("Impresión registrada. Necesitas sacar "+(ids.length*cost)+" copias.");
   };
   window.pdOpenGroup=function(groupId){
@@ -71,10 +70,19 @@
     document.getElementById("pageSubtitle").textContent="Marca la casilla cuando el alumno pague cada impresión.";
     var c=document.getElementById("content"),kpi=stats();
     c.innerHTML=kpi+'<div class="toolbar"><button class="btn" onclick="pdBackToGroups()">← Todos los grupos</button><div class="card" style="padding:10px 14px"><b>'+students.length+' alumnos</b><span class="hint"> · '+jobs.length+' impresiones · '+pending+' pendientes · '+money(debt)+'</span></div></div><div class="card"><div class="section-title"><h2>'+esc(g&&g.name||"Grupo")+' · Control de pagos</h2><span class="hint">Casilla marcada = pagado · vacía = pendiente · — = no incluido</span></div>'+
-    (jobs.length?'<div class="pd-matrix-wrap"><table class="table pd-matrix"><thead><tr><th class="pd-sticky-name">Alumno</th>'+jobs.map(function(p,i){var n=(p.students||[]).length,paid=(p.students||[]).filter(function(x){return x.paid;}).length;return '<th><div>'+(i+1)+'. '+esc(p.title)+'</div><small>'+esc(p.date||"")+'</small><small>'+money(p.cost)+' por alumno</small><small>'+paid+'/'+n+' pagados</small><button class="btn pd-small" onclick="pdFocusJob(\''+esc(p.id)+'\')">Ver trabajo</button></th>';}).join("")+'<th>Total pendiente</th></tr></thead><tbody>'+students.map(function(s){var owing=0;var cells=jobs.map(function(p){var rec=(p.students||[]).find(function(x){return x.studentId===s.id;});if(!rec)return '<td class="pd-not-included">—</td>';if(!rec.paid)owing+=Number(p.cost||0);return '<td><label class="pd-check-label"><input type="checkbox" '+(rec.paid?"checked":"")+' aria-label="'+esc(s.name)+' · '+esc(p.title)+'" onchange="pdPaid(\''+esc(p.id)+'\',\''+esc(s.id)+'\',this.checked)"><span>'+(rec.paid?"Pagado":"Pendiente")+'</span></label></td>';}).join("");return '<tr><td class="pd-sticky-name"><strong>'+esc(s.name)+'</strong></td>'+cells+'<td><strong>'+money(owing)+'</strong></td></tr>';}).join("")+'</tbody></table></div>':'<p class="empty">Este grupo todavía no tiene impresiones registradas.</p>')+'</div>';
+    (jobs.length?'<div class="pd-matrix-wrap"><table class="table pd-matrix"><thead><tr><th class="pd-sticky-name">Alumno</th>'+jobs.map(function(p,i){var n=(p.students||[]).length,paid=(p.students||[]).filter(function(x){return x.paid;}).length;return '<th><div>'+(i+1)+'. '+esc(p.title)+'</div><small>'+esc(p.date||"")+'</small><small>'+money(p.cost)+' por alumno</small><small>'+paid+'/'+n+' pagados</small></th>';}).join("")+'<th>Total pendiente</th></tr></thead><tbody>'+students.map(function(s){var owing=0;var cells=jobs.map(function(p){var rec=(p.students||[]).find(function(x){return x.studentId===s.id;});if(!rec)return '<td class="pd-not-included"><button class="btn pd-include" onclick="pdIncludeStudent(\''+esc(p.id)+'\',\''+esc(s.id)+'\')">Incluir</button></td>';if(!rec.paid)owing+=Number(p.cost||0);return '<td><label class="pd-check-label"><input type="checkbox" '+(rec.paid?"checked":"")+' aria-label="'+esc(s.name)+' · '+esc(p.title)+'" onchange="pdPaid(\''+esc(p.id)+'\',\''+esc(s.id)+'\',this.checked)"><span>'+(rec.paid?"Pagado":"Pendiente")+'</span></label></td>';}).join("");return '<tr><td class="pd-sticky-name"><strong>'+esc(s.name)+'</strong></td>'+cells+'<td><strong>'+money(owing)+'</strong></td></tr>';}).join("")+'</tbody></table></div>':'<p class="empty">Este grupo todavía no tiene impresiones registradas.</p>')+'</div>';
   };
   window.pdBackToGroups=function(){window.pdCurrentGroup=null;document.getElementById("pageTitle").textContent="Impresiones / Adeudos";document.getElementById("pageSubtitle").textContent="Control de pagos por grupo";render();};
   window.pdFocusJob=function(id){var th=document.querySelector('.pd-matrix th button[onclick*="'+id+'"]');if(th)th.closest("th").scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});};
+  window.pdIncludeStudent=function(printId,studentId){
+    var p=(db.prints||[]).find(function(x){return x.id===printId;});if(!p)return;
+    p.students=Array.isArray(p.students)?p.students:[];
+    if(!p.students.some(function(x){return x.studentId===studentId;})){
+      p.students.push({studentId:studentId,paid:false});
+      save();
+    }
+    window.pdOpenGroup(p.groupId);
+  };
   window.pdPaid=function(j,s,v){
     var p=(db.prints||[]).find(function(x){return x.id===j;});
     var rec=p&&(p.students||[]).find(function(x){return x.studentId===s;});
@@ -83,13 +91,12 @@
   window.pdDelete=function(id){
     var j=(db.prints||[]).find(function(x){return x.id===id;});if(!j)return;
     if(!confirm('¿Eliminar la impresión "'+j.title+'"? Esta acción también puede eliminar el Trabajo vinculado y sus calificaciones si no está asociado a otra impresión.'))return;
-    var linked=j.activityId,other=(db.prints||[]).some(function(p){return p.id!==id&&p.activityId&&p.activityId===linked;});
+    /* Eliminar una impresión no debe modificar Trabajos ni Calificaciones. */
     db.prints=db.prints.filter(function(p){return p.id!==id;});
-    if(linked&&!other){db.grades=(db.grades||[]).filter(function(x){return x.activityId!==linked;});db.activities=(db.activities||[]).filter(function(x){return x.id!==linked;});}
     save();if(window.pdCurrentGroup)window.pdOpenGroup(window.pdCurrentGroup);else render();
   };
   var style=document.createElement("style");
-  style.textContent='.pd-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.pd-group-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;cursor:pointer;min-height:110px}.pd-group-card strong{font-size:23px}.pd-group-card span{font-size:13px;color:var(--muted,#667085)}.pd-matrix-wrap{max-width:100%;overflow:auto;border:1px solid var(--border,#dbe2ea);border-radius:10px}.pd-matrix{border-collapse:separate;border-spacing:0;min-width:100%;width:max-content}.pd-matrix th,.pd-matrix td{min-width:105px;text-align:center;padding:9px 10px;border-bottom:1px solid var(--border,#e1e6ed)}.pd-matrix .pd-sticky-name{position:sticky;left:0;z-index:2;min-width:175px;max-width:230px;text-align:left;background:var(--card,#fff)}.pd-matrix thead th{vertical-align:top;background:var(--surface,#f7f9fc);white-space:normal}.pd-matrix thead th small{display:block;font-weight:400;color:var(--muted,#667085);margin-top:4px}.pd-check-label{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-size:11px}.pd-check-label input{width:23px;height:23px;accent-color:#17834d;cursor:pointer}.pd-not-included{color:#98a2b3;background:#f8fafc}.pd-small{margin-top:6px;font-size:12px;padding:5px 8px}@media(max-width:800px){.pd-matrix .pd-sticky-name{min-width:145px}.pd-matrix th,.pd-matrix td{padding:8px 7px}}';
+  style.textContent='.pd-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px}.pd-group-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;cursor:pointer;min-height:110px}.pd-group-card strong{font-size:23px}.pd-group-card span{font-size:13px;color:var(--muted,#667085)}.pd-matrix-wrap{max-width:100%;overflow:auto;border:1px solid var(--border,#dbe2ea);border-radius:10px}.pd-matrix{border-collapse:separate;border-spacing:0;min-width:100%;width:max-content}.pd-matrix th,.pd-matrix td{min-width:105px;text-align:center;padding:9px 10px;border-bottom:1px solid var(--border,#e1e6ed)}.pd-matrix .pd-sticky-name{position:sticky;left:0;z-index:2;min-width:175px;max-width:230px;text-align:left;background:var(--card,#fff)}.pd-matrix thead th{vertical-align:top;background:var(--surface,#f7f9fc);white-space:normal}.pd-matrix thead th small{display:block;font-weight:400;color:var(--muted,#667085);margin-top:4px}.pd-check-label{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-size:11px}.pd-check-label input{width:23px;height:23px;accent-color:#17834d;cursor:pointer}.pd-not-included{color:#98a2b3;background:#f8fafc}.pd-include{font-size:12px;padding:5px 8px;white-space:nowrap}.pd-small{margin-top:6px;font-size:12px;padding:5px 8px}@media(max-width:800px){.pd-matrix .pd-sticky-name{min-width:145px}.pd-matrix th,.pd-matrix td{padding:8px 7px}}';
   document.head.appendChild(style);
   window.renderPrints=render;
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
