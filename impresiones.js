@@ -80,12 +80,24 @@
     if(!p.students.some(function(x){return x.studentId===studentId;})){p.students.push({studentId:studentId,paid:false});save();}
     window.pdOpenGroup(p.groupId);
   };
+  function refreshGroupKeepingPosition(groupId){
+    var wrap=document.querySelector(".pd-matrix-wrap");
+    var left=wrap?wrap.scrollLeft:0,top=wrap?wrap.scrollTop:0;
+    var pageY=window.pageYOffset||document.documentElement.scrollTop||0;
+    window.pdOpenGroup(groupId);
+    var restore=function(){
+      var next=document.querySelector(".pd-matrix-wrap");
+      if(next){next.scrollLeft=left;next.scrollTop=top;}
+      window.scrollTo(0,pageY);
+    };
+    if(typeof requestAnimationFrame==="function")requestAnimationFrame(restore);else setTimeout(restore,0);
+  }
   window.pdPaid=function(j,s,v){
     var p=(db.prints||[]).find(function(x){return x.id===j;});if(!p)return;
     p.students=Array.isArray(p.students)?p.students:[];
     var rec=p.students.find(function(x){return x.studentId===s;});
     if(!rec){rec={studentId:s,paid:false};p.students.push(rec);}
-    rec.paid=!!v;rec.paidAt=v?new Date().toISOString():null;save();window.pdOpenGroup(p.groupId);
+    rec.paid=!!v;rec.paidAt=v?new Date().toISOString():null;save();refreshGroupKeepingPosition(p.groupId);
   };
   window.pdDelete=function(id){
     var j=(db.prints||[]).find(function(x){return x.id===id;});if(!j)return;
