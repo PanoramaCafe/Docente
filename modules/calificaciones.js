@@ -57,7 +57,8 @@
   function saveLocal(){localStorage.setItem('panoramaDocente_v1',JSON.stringify(db));}
   function activate(){
     const c=document.getElementById('content');if(!c)return;
-    installStickyStyles();\n    c.innerHTML=view();
+    installStickyStyles();
+    c.innerHTML=view();
     const g=document.getElementById('cxGroup'),s=document.getElementById('cxSubject');
     g.onchange=()=>{s.innerHTML=subjects(g.value).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');s.disabled=!g.value;};
     document.getElementById('cxOpen').onclick=()=>renderTable(g.value,s.value);
