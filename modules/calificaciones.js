@@ -21,12 +21,45 @@
     const list=studentsOf(groupId),acts=db.activities.filter(a=>a.groupId===groupId&&a.subjectId===subjectId).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     const target=document.getElementById('cxTable'); if(!target)return;
     if(!acts.length){target.innerHTML=`<div class="empty">No hay actividades registradas para ${esc(subjectName(subjectId))} en ${esc(groupName(groupId))}. Primero crea el trabajo en <b>Trabajos</b> o desde <b>Impresiones</b>.</div>`;return;}
-    target.innerHTML=`<div class="section-title"><div><h2>${esc(groupName(groupId))} · ${esc(subjectName(subjectId))}</h2><small>Captura sobre el valor de cada actividad. Deja vacío si aún no hay calificación.</small></div><button class="btn primary" id="cxSave">Guardar calificaciones</button></div><div class="table-wrap"><table class="table cx-sticky-table"><thead><tr><th class="cx-col-num">#</th><th class="cx-col-student">Alumno</th>${acts.map(a=>`<th title="${esc(a.title)}">${esc(a.title)}<br><small>${esc(a.date)} · máx. ${a.points||10}</small></th>`).join('')}<th>Promedio</th></tr></thead><tbody>${list.map((st,i)=>{
+    target.innerHTML=`<div class="section-title"><div><h2>${esc(groupName(groupId))} · ${esc(subjectName(subjectId))}</h2><small>Captura sobre el valor de cada actividad. Deja vacío si aún no hay calificación.</small></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="cxSave">Guardar calificaciones</button><button class="btn" id="cxExport">📊 Exportar Excel</button></div></div><div class="table-wrap"><table class="table cx-sticky-table"><thead><tr><th class="cx-col-num">#</th><th class="cx-col-student">Alumno</th>${acts.map(a=>`<th title="${esc(a.title)}">${esc(a.title)}<br><small>${esc(a.date)} · máx. ${a.points||10}</small></th>`).join('')}<th>Promedio</th></tr></thead><tbody>${list.map((st,i)=>{
       const vals=acts.map(a=>{const r=db.grades.find(x=>x.activityId===a.id&&x.studentId===st.id);return r?.value??''});
       const nums=vals.filter(v=>v!==''&&Number.isFinite(Number(v))).map(Number); const av=nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:null;
       return `<tr><td class="cx-col-num">${i+1}</td><td class="cx-col-student"><b>${esc(st.name)}</b></td>${acts.map((a,j)=>`<td><input class="gradeInput cxGrade" data-student="${st.id}" data-activity="${a.id}" data-max="${Number(a.points)||10}" type="number" min="0" max="${Number(a.points)||10}" step="0.1" value="${esc(vals[j])}" inputmode="decimal" style="width:75px"></td>`).join('')}<td><b>${av===null?'—':av.toFixed(1)}</b></td></tr>`;
     }).join('')}</tbody></table></div>`;
-    document.getElementById('cxSave').onclick=save;
+    document.getElementById('cxSave').onclick=save;\n    document.getElementById('cxExport').onclick=()=>exportExcel(groupId,subjectId);
+  }
+  function exportExcel(groupId,subjectId){
+    if(!window.XLSX||!XLSX.utils||!XLSX.writeFile){alert('No está disponible el módulo de Excel. Comprueba tu conexión y vuelve a intentarlo.');return;}
+    const students=studentsOf(groupId);
+    const activities=db.activities.filter(a=>a.groupId===groupId&&a.subjectId===subjectId).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
+    if(!activities.length){alert('No hay actividades para exportar.');return;}
+    const live={};
+    document.querySelectorAll('#cxTable .cxGrade').forEach(el=>{live[el.dataset.student+'|'+el.dataset.activity]=el.value;});
+    const rows=[
+      ['Grupo',groupName(groupId)],
+      ['Materia',subjectName(subjectId)],
+      ['Ciclo escolar',PD_CONFIG.cycle||''],
+      [],
+      ['N°','Alumno',...activities.map(a=>a.title+' ('+(a.date||'')+' · máx. '+(a.points||10)+')'),'Promedio']
+    ];
+    students.forEach((st,i)=>{
+      const vals=activities.map(a=>{
+        const key=st.id+'|'+a.id;
+        if(Object.prototype.hasOwnProperty.call(live,key))return live[key]===''?'':Number(live[key]);
+        const r=db.grades.find(x=>x.activityId===a.id&&x.studentId===st.id);
+        return r?.value??'';
+      });
+      const nums=vals.filter(v=>v!==''&&Number.isFinite(Number(v))).map(Number);
+      const avg=nums.length?Number((nums.reduce((x,y)=>x+y,0)/nums.length).toFixed(2)):'';
+      rows.push([i+1,st.name,...vals,avg]);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:6},{wch:32},...activities.map(()=>({wch:24})),{wch:12}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Calificaciones');
+    const safe=(String(groupName(groupId)).replace(/[^a-z0-9_-]+/gi,'_')||'Grupo');
+    const subject=(String(subjectName(subjectId)).replace(/[^a-z0-9_-]+/gi,'_')||'Materia');
+    XLSX.writeFile(wb,'Calificaciones_'+safe+'_'+subject+'.xlsx');
   }
   function save(){
     let invalid=null;
