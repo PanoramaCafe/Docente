@@ -21,10 +21,10 @@
     const list=studentsOf(groupId),acts=db.activities.filter(a=>a.groupId===groupId&&a.subjectId===subjectId).sort((a,b)=>String(a.date||'').localeCompare(String(b.date||'')));
     const target=document.getElementById('cxTable'); if(!target)return;
     if(!acts.length){target.innerHTML=`<div class="empty">No hay actividades registradas para ${esc(subjectName(subjectId))} en ${esc(groupName(groupId))}. Primero crea el trabajo en <b>Trabajos</b> o desde <b>Impresiones</b>.</div>`;return;}
-    target.innerHTML=`<div class="section-title"><div><h2>${esc(groupName(groupId))} · ${esc(subjectName(subjectId))}</h2><small>Captura sobre el valor de cada actividad. Deja vacío si aún no hay calificación.</small></div><button class="btn primary" id="cxSave">Guardar calificaciones</button></div><div class="table-wrap"><table class="table"><thead><tr><th>#</th><th>Alumno</th>${acts.map(a=>`<th title="${esc(a.title)}">${esc(a.title)}<br><small>${esc(a.date)} · máx. ${a.points||10}</small></th>`).join('')}<th>Promedio</th></tr></thead><tbody>${list.map((st,i)=>{
+    target.innerHTML=`<div class="section-title"><div><h2>${esc(groupName(groupId))} · ${esc(subjectName(subjectId))}</h2><small>Captura sobre el valor de cada actividad. Deja vacío si aún no hay calificación.</small></div><button class="btn primary" id="cxSave">Guardar calificaciones</button></div><div class="table-wrap"><table class="table cx-sticky-table"><thead><tr><th class="cx-col-num">#</th><th class="cx-col-student">Alumno</th>${acts.map(a=>`<th title="${esc(a.title)}">${esc(a.title)}<br><small>${esc(a.date)} · máx. ${a.points||10}</small></th>`).join('')}<th>Promedio</th></tr></thead><tbody>${list.map((st,i)=>{
       const vals=acts.map(a=>{const r=db.grades.find(x=>x.activityId===a.id&&x.studentId===st.id);return r?.value??''});
       const nums=vals.filter(v=>v!==''&&Number.isFinite(Number(v))).map(Number); const av=nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:null;
-      return `<tr><td>${i+1}</td><td><b>${esc(st.name)}</b></td>${acts.map((a,j)=>`<td><input class="gradeInput cxGrade" data-student="${st.id}" data-activity="${a.id}" data-max="${Number(a.points)||10}" type="number" min="0" max="${Number(a.points)||10}" step="0.1" value="${esc(vals[j])}" inputmode="decimal" style="width:75px"></td>`).join('')}<td><b>${av===null?'—':av.toFixed(1)}</b></td></tr>`;
+      return `<tr><td class="cx-col-num">${i+1}</td><td class="cx-col-student"><b>${esc(st.name)}</b></td>${acts.map((a,j)=>`<td><input class="gradeInput cxGrade" data-student="${st.id}" data-activity="${a.id}" data-max="${Number(a.points)||10}" type="number" min="0" max="${Number(a.points)||10}" step="0.1" value="${esc(vals[j])}" inputmode="decimal" style="width:75px"></td>`).join('')}<td><b>${av===null?'—':av.toFixed(1)}</b></td></tr>`;
     }).join('')}</tbody></table></div>`;
     document.getElementById('cxSave').onclick=save;
   }
@@ -37,10 +37,27 @@
     alert('Calificaciones guardadas.');
     const g=document.getElementById('cxGroup').value,s=document.getElementById('cxSubject').value;renderTable(g,s);
   }
+  function installStickyStyles(){
+    if(document.getElementById('cxStickyStyles'))return;
+    const style=document.createElement('style');style.id='cxStickyStyles';
+    style.textContent=`
+      #cxTable .table-wrap{max-width:100%;max-height:calc(100vh - 330px);overflow:auto;position:relative;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+      #cxTable table.cx-sticky-table{border-collapse:separate;border-spacing:0;min-width:max-content;width:100%}
+      #cxTable .cx-sticky-table th,#cxTable .cx-sticky-table td{background:var(--card,#fff)}
+      #cxTable .cx-sticky-table thead th{position:sticky;top:0;z-index:3;background:var(--surface,#f7f9fc);box-shadow:0 1px 0 var(--border,#dbe2ea)}
+      #cxTable .cx-sticky-table .cx-col-num{position:sticky;left:0;z-index:4;min-width:42px;width:42px;background:var(--surface,#f7f9fc)}
+      #cxTable .cx-sticky-table .cx-col-student{position:sticky;left:42px;z-index:4;min-width:250px;text-align:left;background:var(--surface,#f7f9fc);box-shadow:2px 0 3px rgba(0,0,0,.08)}
+      #cxTable .cx-sticky-table tbody .cx-col-num,#cxTable .cx-sticky-table tbody .cx-col-student{background:var(--card,#fff);z-index:2}
+      #cxTable .cx-sticky-table tbody .cx-col-num{z-index:3}
+      #cxTable .cx-sticky-table thead .cx-col-num,#cxTable .cx-sticky-table thead .cx-col-student{z-index:5;background:var(--surface,#f7f9fc)}
+      @media(max-width:800px){#cxTable .cx-sticky-table .cx-col-student{min-width:190px}}
+    `;
+    document.head.appendChild(style);
+  }
   function saveLocal(){localStorage.setItem('panoramaDocente_v1',JSON.stringify(db));}
   function activate(){
     const c=document.getElementById('content');if(!c)return;
-    c.innerHTML=view();
+    installStickyStyles();\n    c.innerHTML=view();
     const g=document.getElementById('cxGroup'),s=document.getElementById('cxSubject');
     g.onchange=()=>{s.innerHTML=subjects(g.value).map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');s.disabled=!g.value;};
     document.getElementById('cxOpen').onclick=()=>renderTable(g.value,s.value);
