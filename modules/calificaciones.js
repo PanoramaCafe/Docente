@@ -26,7 +26,8 @@
       const nums=vals.filter(v=>v!==''&&Number.isFinite(Number(v))).map(Number); const av=nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:null;
       return `<tr><td class="cx-col-num">${i+1}</td><td class="cx-col-student"><b>${esc(st.name)}</b></td>${acts.map((a,j)=>`<td><input class="gradeInput cxGrade" data-student="${st.id}" data-activity="${a.id}" data-max="${Number(a.points)||10}" type="number" min="0" max="${Number(a.points)||10}" step="0.1" value="${esc(vals[j])}" inputmode="decimal" style="width:75px"></td>`).join('')}<td><b>${av===null?'—':av.toFixed(1)}</b></td></tr>`;
     }).join('')}</tbody></table></div>`;
-    document.getElementById('cxSave').onclick=save;\n    document.getElementById('cxExport').onclick=()=>exportExcel(groupId,subjectId);
+    document.getElementById('cxSave').onclick=save;
+    document.getElementById('cxExport').onclick=()=>exportExcel(groupId,subjectId);
   }
   function exportExcel(groupId,subjectId){
     if(!window.XLSX||!XLSX.utils||!XLSX.writeFile){alert('No está disponible el módulo de Excel. Comprueba tu conexión y vuelve a intentarlo.');return;}
