@@ -24,7 +24,7 @@
     target.innerHTML=`<div class="section-title"><div><h2>${esc(groupName(groupId))} · ${esc(subjectName(subjectId))}</h2><small>Captura sobre el valor de cada actividad. Deja vacío si aún no hay calificación.</small></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="cxSave">Guardar calificaciones</button><button class="btn" id="cxExport">📊 Exportar Excel</button></div></div><div class="table-wrap"><table class="table cx-sticky-table"><thead><tr><th class="cx-col-num">#</th><th class="cx-col-student">Alumno</th>${acts.map(a=>`<th title="${esc(a.title)}">${esc(a.title)}<br><small>${esc(a.date)} · máx. ${a.points||10}</small></th>`).join('')}<th>Promedio</th></tr></thead><tbody>${list.map((st,i)=>{
       const vals=acts.map(a=>{const r=db.grades.find(x=>x.activityId===a.id&&x.studentId===st.id);return r?.value??''});
       const nums=vals.filter(v=>v!==''&&Number.isFinite(Number(v))).map(Number); const av=nums.length?nums.reduce((a,b)=>a+b,0)/nums.length:null;
-      return `<tr><td class="cx-col-num">${i+1}</td><td class="cx-col-student"><b>${esc(st.name)}</b></td>${acts.map((a,j)=>`<td><input class="gradeInput cxGrade" data-student="${st.id}" data-activity="${a.id}" data-max="${Number(a.points)||10}" type="number" min="0" max="${Number(a.points)||10}" step="0.1" value="${esc(vals[j])}" inputmode="decimal" style="width:75px"></td>`).join('')}<td><b>${av===null?'—':av.toFixed(1)}</b></td></tr>`;
+      return `<tr><td class="cx-col-num">${i+1}</td><td class="cx-col-student"><b>${esc(st.name)}</b></td>${acts.map((a,j)=>`<td><input class="gradeInput cxGrade" data-student="${st.id}" data-activity="${a.id}" data-max="${Number(a.points)||10}" type="number" min="0" max="${Number(a.points)||10}" step="any" value="${esc(vals[j])}" inputmode="decimal" style="width:75px"></td>`).join('')}<td><b>${av===null?'—':av.toFixed(1)}</b></td></tr>`;
     }).join('')}</tbody></table></div>`;
     document.getElementById('cxSave').onclick=save;
     document.getElementById('cxExport').onclick=()=>exportExcel(groupId,subjectId);
@@ -63,12 +63,25 @@
     XLSX.writeFile(wb,'Calificaciones_'+safe+'_'+subject+'.xlsx');
   }
   function save(){
+    const inputs=[...document.querySelectorAll('.cxGrade')];
     let invalid=null;
-    document.querySelectorAll('.cxGrade').forEach(el=>{if(invalid||el.value==='')return;const v=Number(el.value),max=Number(el.dataset.max)||10;if(!Number.isFinite(v)||v<0||v>max)invalid=`La calificación debe estar entre 0 y ${max}.`;});
+    inputs.forEach(el=>{
+      if(invalid||el.value.trim()==='')return;
+      const v=Number(el.value),max=Number(el.dataset.max)||10;
+      if(!Number.isFinite(v)||v<0||v>max)invalid=`La calificación debe estar entre 0 y ${max}. También puedes dejar la celda vacía.`;
+    });
     if(invalid){alert(invalid);return;}
-    document.querySelectorAll('.cxGrade').forEach(el=>{const idx=db.grades.findIndex(g=>g.studentId===el.dataset.student&&g.activityId===el.dataset.activity);if(el.value===''){if(idx>=0)db.grades.splice(idx,1);return;}const obj={id:idx>=0?db.grades[idx].id:uid('gr'),studentId:el.dataset.student,activityId:el.dataset.activity,value:Number(el.value)};if(idx>=0)db.grades[idx]=obj;else db.grades.push(obj);});
+    let saved=0;
+    inputs.forEach(el=>{
+      // Una celda vacía significa "todavía no capturada": no borrar ni alterar registros existentes.
+      if(el.value.trim()==='')return;
+      const idx=db.grades.findIndex(g=>g.studentId===el.dataset.student&&g.activityId===el.dataset.activity);
+      const obj={id:idx>=0?db.grades[idx].id:uid('gr'),studentId:el.dataset.student,activityId:el.dataset.activity,value:Number(el.value)};
+      if(idx>=0)db.grades[idx]=obj;else db.grades.push(obj);
+      saved++;
+    });
     saveLocal();
-    alert('Calificaciones guardadas.');
+    alert(`Cambios guardados correctamente. Calificaciones capturadas: ${saved}. Las celdas vacías quedaron pendientes.`);
     const g=document.getElementById('cxGroup').value,s=document.getElementById('cxSubject').value;renderTable(g,s);
   }
   function installStickyStyles(){
