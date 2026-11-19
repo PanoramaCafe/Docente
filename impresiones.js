@@ -108,11 +108,21 @@
       doc.setFont("helvetica","normal");doc.setFontSize(7);doc.rect(x,y,nameW,rowH);var nm=doc.splitTextToSize(String(s.name||""),nameW-4);doc.text(nm.slice(0,2),x+2,y+5);x+=nameW;
       jobs.forEach(function(p){
         var rec=(p.students||[]).find(function(r){return r.studentId===s.id;});
-        var label=rec?(rec.paid?"Pagado":"Pendiente"):"—";
         if(rec&&!rec.paid)owing+=Number(p.cost||0);
         doc.rect(x,y,colW,rowH);
-        doc.setFont("helvetica",rec&&!rec.paid?"bold":"normal");doc.setFontSize(7);
-        doc.text(label,x+colW/2,y+7.5,{align:"center"});x+=colW;
+        if(rec){
+          if(rec.paid){
+            doc.setDrawColor(22,150,75);doc.setLineWidth(1.2);
+            var cx=x+colW/2-2,cy=y+6.5;
+            doc.line(cx-2,cy,cx,cy+2);doc.line(cx,cy+2,cx+4,cy-3);
+            doc.setDrawColor(0,0,0);doc.setLineWidth(0.2);
+          }else{
+            var bx=x+colW/2-2.5,by=y+4.5;
+            doc.setDrawColor(120,120,120);doc.setLineWidth(0.5);doc.rect(bx,by,5,5);
+            doc.setDrawColor(0,0,0);doc.setLineWidth(0.2);
+          }
+        }
+        x+=colW;
       });
       doc.setFont("helvetica","bold");doc.rect(x,y,debtW,rowH);doc.text(money(owing),x+debtW/2,y+7.5,{align:"center"});
       y+=rowH;
