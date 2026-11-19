@@ -69,8 +69,56 @@
     document.getElementById("pageTitle").textContent="Pagos · "+(g&&g.name||"Grupo");
     document.getElementById("pageSubtitle").textContent="Marca la casilla cuando el alumno pague cada impresión.";
     var c=document.getElementById("content"),kpi=stats();
-    c.innerHTML=kpi+'<div class="toolbar"><button class="btn" onclick="pdBackToGroups()">← Todos los grupos</button><div class="card" style="padding:10px 14px"><b>'+students.length+' alumnos</b><span class="hint"> · '+jobs.length+' impresiones · '+pending+' pendientes · '+money(debt)+'</span></div></div><div class="card"><div class="section-title"><h2>'+esc(g&&g.name||"Grupo")+' · Control de pagos</h2><span class="hint">Casilla marcada = pagado · vacía = pendiente · — = no incluido</span></div>'+
+    c.innerHTML=kpi+'<div class="toolbar"><button class="btn" onclick="pdBackToGroups()">← Todos los grupos</button><div class="card" style="padding:10px 14px"><b>'+students.length+' alumnos</b><span class="hint"> · '+jobs.length+' impresiones · '+pending+' pendientes · '+money(debt)+'</span></div><button class="btn primary" onclick="pdExportDebtsPdf(\''+esc(groupId)+\' )">📄 Exportar adeudos a PDF</button></div><div class="card"><div class="section-title"><h2>'+esc(g&&g.name||"Grupo")+' · Control de pagos</h2><span class="hint">Casilla marcada = pagado · vacía = pendiente · — = no incluido</span></div>'+
     (jobs.length?'<div class="pd-matrix-wrap"><table class="table pd-matrix"><thead><tr><th class="pd-sticky-name">Alumno</th>'+jobs.map(function(p,i){var n=(p.students||[]).length,paid=(p.students||[]).filter(function(x){return x.paid;}).length;return '<th><div>'+(i+1)+'. '+esc(p.title)+'</div><small>'+esc(p.date||"")+'</small><small>'+money(p.cost)+' por alumno</small><small>'+paid+'/'+n+' pagados</small></th>';}).join("")+'<th>Total pendiente</th></tr></thead><tbody>'+students.map(function(s){var owing=0;var cells=jobs.map(function(p){var rec=(p.students||[]).find(function(x){return x.studentId===s.id;});if(!rec)return '<td class="pd-not-included"><button class="btn pd-include" data-print="'+esc(p.id)+'" data-student="'+esc(s.id)+'" onclick="pdIncludeStudent(this.dataset.print,this.dataset.student)">Incluir</button></td>';if(!rec.paid)owing+=Number(p.cost||0);return '<td><label class="pd-check-label"><input type="checkbox" '+(rec.paid?"checked":"")+' aria-label="'+esc(s.name)+' · '+esc(p.title)+'" data-print="'+esc(p.id)+'" data-student="'+esc(s.id)+'" onchange="pdPaid(this.dataset.print,this.dataset.student,this.checked)"><span>'+(rec.paid?"Pagado":"Pendiente")+'</span></label></td>';}).join("");return '<tr><td class="pd-sticky-name"><strong>'+esc(s.name)+'</strong></td>'+cells+'<td><strong>'+money(owing)+'</strong></td></tr>';}).join("")+'</tbody></table></div>':'<p class="empty">Este grupo todavía no tiene impresiones registradas.</p>')+'</div>';
+  };
+  window.pdExportDebtsPdf=function(groupId){
+    var g=(db.groups||[]).find(function(x){return x.id===groupId;});
+    if(!g)return alert("No se encontró el grupo.");
+    if(!window.jspdf||!window.jspdf.jsPDF)return alert("No está disponible el generador PDF.");
+    var students=(db.students||[]).filter(function(s){return s.groupId===groupId;}).slice().sort(function(a,b){return String(a.name).localeCompare(String(b.name),"es");});
+    var jobs=(db.prints||[]).filter(function(p){return p.groupId===groupId;}).slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date))||String(a.title).localeCompare(String(b.title),"es");});
+    var cols=jobs.length, pageW=Math.max(420,68+cols*38), pageH=297;
+    var doc=new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:[pageW,pageH]});
+    var margin=10, nameW=58, debtW=28, colW=cols?((pageW-margin*2-nameW-debtW)/cols):38;
+    var x0=margin, y=28, rowH=12;
+    var total=0,paid=0,pendingCount=0;
+    jobs.forEach(function(p){(p.students||[]).forEach(function(r){total+=Number(p.cost||0);if(r.paid)paid+=Number(p.cost||0);else pendingCount++;});});
+    function header(){
+      doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("Control de impresiones y adeudos",margin,12);
+      doc.setFont("helvetica","normal");doc.setFontSize(9);doc.text(String(g.name)+" · Ciclo "+String(db.cycle||"2026-2027"),margin,19);
+      doc.text("Generado: "+new Date().toLocaleDateString("es-MX"),pageW-margin,19,{align:"right"});
+      doc.setFontSize(8);doc.text("Generado: "+money(total)+"     Cobrado: "+money(paid)+"     Pendiente: "+money(total-paid)+"     Registros pendientes: "+pendingCount,margin,24);
+      var x=x0;doc.setFillColor(235,239,244);doc.rect(x,y,nameW,rowH,"F");doc.rect(x,y,nameW,rowH);
+      doc.setFont("helvetica","bold");doc.setFontSize(8);doc.text("Alumno",x+2,y+7.5);x+=nameW;
+      jobs.forEach(function(p,i){
+        doc.setFillColor(235,239,244);doc.rect(x,y,colW,rowH,"F");doc.rect(x,y,colW,rowH);
+        doc.setFontSize(7);var title=doc.splitTextToSize((i+1)+". "+String(p.title||""),colW-3);
+        doc.text(title.slice(0,2),x+1.5,y+4);
+        doc.setFont("helvetica","normal");doc.setFontSize(6);doc.text(String(p.date||"")+" · "+money(p.cost),x+1.5,y+10);
+        doc.setFont("helvetica","bold");x+=colW;
+      });
+      doc.setFillColor(235,239,244);doc.rect(x,y,debtW,rowH,"F");doc.rect(x,y,debtW,rowH);doc.setFontSize(8);doc.text("Total pendiente",x+debtW/2,y+7.5,{align:"center"});
+      y+=rowH;
+    }
+    header();
+    students.forEach(function(s){
+      if(y+rowH>pageH-12){doc.addPage([pageW,pageH],"landscape");y=28;header();}
+      var x=x0,owing=0;
+      doc.setFont("helvetica","normal");doc.setFontSize(7);doc.rect(x,y,nameW,rowH);var nm=doc.splitTextToSize(String(s.name||""),nameW-4);doc.text(nm.slice(0,2),x+2,y+5);x+=nameW;
+      jobs.forEach(function(p){
+        var rec=(p.students||[]).find(function(r){return r.studentId===s.id;});
+        var label=rec?(rec.paid?"Pagado":"Pendiente"):"—";
+        if(rec&&!rec.paid)owing+=Number(p.cost||0);
+        doc.rect(x,y,colW,rowH);
+        doc.setFont("helvetica",rec&&!rec.paid?"bold":"normal");doc.setFontSize(7);
+        doc.text(label,x+colW/2,y+7.5,{align:"center"});x+=colW;
+      });
+      doc.setFont("helvetica","bold");doc.rect(x,y,debtW,rowH);doc.text(money(owing),x+debtW/2,y+7.5,{align:"center"});
+      y+=rowH;
+    });
+    if(!students.length){doc.setFontSize(9);doc.text("No hay alumnos registrados en este grupo.",margin,y+8);}
+    doc.save("Adeudos_"+String(g.name).replace(/[^a-z0-9_-]/gi,"_")+"_"+today()+".pdf");
   };
   window.pdBackToGroups=function(){window.pdCurrentGroup=null;document.getElementById("pageTitle").textContent="Impresiones / Adeudos";document.getElementById("pageSubtitle").textContent="Control de pagos por grupo";render();};
   window.pdFocusJob=function(id){var th=document.querySelector('.pd-matrix th button[onclick*="'+id+'"]');if(th)th.closest("th").scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"});};
